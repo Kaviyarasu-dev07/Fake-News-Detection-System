@@ -7,8 +7,9 @@ import requests
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
-# Secret key required for Flask Session handling
-app.secret_key = secrets.token_hex(16) 
+# HARDCODED SECRET KEY: Crucial for cloud platforms like Render so that 
+# rotating Gunicorn server workers don't accidentally log you out every 5 seconds!
+app.secret_key = "fnds_secure_production_key_2026" 
 
 # --- AUTHENTICATION LOGIC ---
 @app.route('/login', methods=['GET', 'POST'])
