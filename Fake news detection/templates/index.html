@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FNDS AI - Fact Checker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+            <span>FNDS <span style="color: var(--primary)">AI</span></span>
+        </div>
+        <button id="themeToggle" class="btn-icon" title="Toggle Light/Dark Mode">🌓</button>
+    </nav>
+
+    <div class="main-layout">
+        <!-- Main Form Area -->
+        <main class="detector-panel">
+            <div class="card header-card">
+                <div class="header-logo-placeholder">
+                    <span style="font-size: 3rem;">🔍</span>
+                </div>
+                <h1>FNDS AI</h1>
+                <h2>AI-Powered Fact Checker</h2>
+                <p>Advanced machine learning to verify news authenticity in real-time.</p>
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn {% if mode == 'single' or not mode %}active{% endif %}" onclick="switchTab('single')">📝 Text Analysis</button>
+                    <button class="tab-btn {% if mode == 'url' %}active{% endif %}" onclick="switchTab('url')">🌐 URL Checker</button>
+                    <button class="tab-btn {% if mode == 'compare' %}active{% endif %}" onclick="switchTab('compare')">⚖️ Compare</button>
+                    <button class="tab-btn {% if mode == 'about' %}active{% endif %}" onclick="switchTab('about')">ℹ️ About</button>
+                </div>
+            </div>
+
+            {% if error %}
+            <div class="card error-card animate-pop">
+                ⚠️ {{ error }}
+            </div>
+            {% endif %}
+
+            <!-- Tab 1: Single Text -->
+            <form action="/predict" method="POST" id="form-single" class="card tab-content" {% if mode != 'single' and mode %}style="display:none;"{% endif %}>
+                <input type="hidden" name="mode" value="single">
+                <div class="textarea-wrapper">
+                    <textarea name="news_text" id="newsText_single" rows="6" placeholder="Paste article text here..." required>{{ text1 if mode == 'single' else '' }}</textarea>
+                    <div class="editor-actions">
+                        <button type="button" class="btn-text" onclick="startDictation('newsText_single')" title="Voice to Text">🎙️ Voice</button>
+                        <button type="button" class="btn-text" onclick="document.getElementById('newsText_single').value='BREAKING: Magic pill cures all diseases instantly! Click now.'">🧪 Example</button>
+                        <button type="button" class="btn-text" onclick="document.getElementById('newsText_single').value=''">🔄 Clear</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary analyze-btn">🔍 Analyze Text</button>
+            </form>
+
+            <!-- Tab 2: URL Checker -->
+            <form action="/predict" method="POST" id="form-url" class="card tab-content" {% if mode != 'url' %}style="display:none;"{% endif %}>
+                <input type="hidden" name="mode" value="url">
+                <div class="input-wrapper">
+                    <label>News Article URL:</label>
+                    <input type="url" name="url_input" placeholder="https://example.com/news/article" value="{{ url if mode == 'url' else '' }}" required class="text-input">
+                </div>
+                <button type="submit" class="btn-primary analyze-btn">🌐 Extract & Analyze</button>
+                {% if mode == 'url' and text_extracted %}
+                <div class="extracted-text">
+                    <small>Extracted Content Snapshot:</small>
+                    <p>{{ text_extracted[:300] }}...</p>
+                </div>
+                {% endif %}
+            </form>
+
+            <!-- Tab 3: Compare -->
+            <form action="/predict" method="POST" id="form-compare" class="card tab-content compare-form" {% if mode != 'compare' %}style="display:none;"{% endif %}>
+                <input type="hidden" name="mode" value="compare">
+                <div class="compare-inputs">
+                    <div class="textarea-wrapper">
+                        <label>Article A:</label>
+                        <textarea name="compare_text_1" rows="5" required>{{ text1 if mode == 'compare' else '' }}</textarea>
+                    </div>
+                    <div class="textarea-wrapper">
+                        <label>Article B:</label>
+                        <textarea name="compare_text_2" rows="5" required>{{ text2 if mode == 'compare' else '' }}</textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary analyze-btn">⚖️ Compare Articles</button>
+            </form>
+
+            <!-- Tab 4: About -->
+            <div id="form-about" class="card tab-content about-card" {% if mode != 'about' %}style="display:none;"{% endif %}>
+                <h3 style="margin-bottom:1rem;color:var(--primary);"><span class="icon" style="font-size:1.2rem;">📘</span> About FNDS AI</h3>
+                <p class="about-desc" style="font-size:1.1rem;margin-bottom:1.5rem;">This system leverages Natural Language Processing (TF-IDF) and Machine Learning (Logistic Regression) to definitively classify articles as Fake or Real.</p>
+                
+                <div class="about-grid mt-3">
+                    <div class="about-box">
+                        <h4>⚙️ System Mechanics</h4>
+                        <p>1. Securely extracts textual article data via APIs.</p>
+                        <p>2. Uses TF-IDF parsing to evaluate word importance.</p>
+                        <p>3. A trained ML algorithm maps probabilities based on thousands of historically verified articles.</p>
+                    </div>
+                    <div class="about-box">
+                        <h4>🧠 TF-IDF Features</h4>
+                        <p>"Term Frequency - Inverse Document Frequency" measures word significance. By checking keyword correlations, the system identifies the vocabulary most commonly aligned with fabricated journalism.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESULTS SECTION -->
+            {% if result1 %}
+                <div id="resultsArea" class="animate-pop">
+                    {% if mode != 'compare' %}
+                        <!-- Single Result -->
+                        {% set res = result1 %}
+                        {% set rawtext = text1 %}
+                        {% include 'result_card.html' %}
+                    {% else %}
+                        <!-- Compare Results -->
+                        <h3 class="compare-title">Comparison Results</h3>
+                        <div class="compare-grid">
+                            <div class="compare-col">
+                                <span class="col-header">Article A</span>
+                                {% set res = result1 %}
+                                {% set rawtext = text1 %}
+                                {% include 'result_card.html' %}
+                            </div>
+                            <div class="compare-col">
+                                <span class="col-header">Article B</span>
+                                {% set res = result2 %}
+                                {% set rawtext = text2 %}
+                                {% include 'result_card.html' %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+        </main>
+
+        <!-- Sidebar Dashboard -->
+        <aside class="dashboard-panel">
+            <div class="card analytics-card">
+                <h3>📊 Model Analytics</h3>
+                <div class="chart-container">
+                    <canvas id="analyticsChart"></canvas>
+                </div>
+                <div class="stats-grid mt-3">
+                    <div class="stat-box real"><span>{{ analytics['Real'] }}</span><small>Real</small></div>
+                    <div class="stat-box fake"><span>{{ analytics['Fake'] }}</span><small>Fake</small></div>
+                </div>
+            </div>
+
+            <div class="card history-card">
+                <h3>📜 Prediction History</h3>
+                <div class="history-list">
+                    {% if history %}
+                        {% for item in history %}
+                        <div class="history-item">
+                            <span class="history-badge badge-{{ item.prediction.lower() }}">{{ item.prediction }}</span>
+                            <div class="history-content">
+                                <p>"{{ item.text }}"</p>
+                                <small>Confidence: {{ item.confidence }}%</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="empty-history">No history found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // Data for Chart.js
+        const realCount = {{ analytics['Real']|default(0) }};
+        const fakeCount = {{ analytics['Fake']|default(0) }};
+
+        // Theme Handling
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            const doc = document.documentElement;
+            const newTheme = doc.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            doc.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateChartColor(newTheme);
+        });
+
+        // Chart.js initialization
+        let chartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            const textColor = document.documentElement.getAttribute('data-theme') === 'light' ? '#475569' : '#94a3b8';
+            
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Real News', 'Fake News'],
+                    datasets: [{
+                        data: [realCount, fakeCount],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, font: {family: 'Outfit'} } }
+                    }
+                }
+            });
+        }
+        initChart();
+
+        function updateChartColor(theme) {
+            if(chartInstance) {
+                chartInstance.options.plugins.legend.labels.color = theme === 'light' ? '#475569' : '#94a3b8';
+                chartInstance.update();
+            }
+        }
+
+        // Tab Switching Logic
+        function switchTab(mode) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`form-${mode}`).style.display = 'block';
+            document.querySelector(`.tab-btn[onclick="switchTab('${mode}')"]`).classList.add('active');
+            
+            // Clean up old results when switching menus to avoid confusion
+            const resArea = document.getElementById('resultsArea');
+            if(resArea && document.querySelector(`input[name="mode"][value="${mode}"]`).value !== "{{ mode }}") {
+                resArea.style.display = 'none';
+            } else if (resArea) {
+                resArea.style.display = 'block';
+            }
+        }
+
+        // Speech to text
+        function startDictation(elementId) {
+            if (window.hasOwnProperty('webkitSpeechRecognition') || window.hasOwnProperty('SpeechRecognition')) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = "en-US";
+                
+                const box = document.getElementById(elementId);
+                const oldPlace = box.placeholder;
+                box.placeholder = "Listening... Speak now!";
+                
+                recognition.start();
+                recognition.onresult = function(e) {
+                    box.value += (box.value ? " " : "") + e.results[0][0].transcript;
+                    box.placeholder = oldPlace;
+                    recognition.stop();
+                };
+                recognition.onerror = function(e) {
+                    alert("Voice recognition error: " + e.error);
+                    box.placeholder = oldPlace;
+                    recognition.stop();
+                }
+            } else {
+                alert("Speech Recognition API is not supported in this browser.");
+            }
+        }
+
+        // Action loading states
+        document.querySelectorAll('form').forEach(f => {
+            f.addEventListener('submit', (e) => {
+                const btn = e.target.querySelector('.analyze-btn');
+                btn.innerHTML = '⏳ Processing...';
+                btn.style.opacity = '0.7';
+                btn.disabled = true;
+            });
+        });
+
+        // Copy Text
+        function copyText(elemId) {
+            const data = document.getElementById(elemId).innerText;
+            navigator.clipboard.writeText(data).then(()=>alert("Copied!"));
+        }
+
+        // Download Text
+        function downloadText(elemId) {
+            const data = document.getElementById(elemId).innerText;
+            const blob = new Blob([data], { type: "text/plain" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "Fake_News_Analysis.txt";
+            a.click();
+        }
+    </script>
+    
+    <footer class="site-footer">
+        <p>&copy; 2026 <strong>FNDS AI</strong>. All rights reserved.</p>
+    </footer>
+</body>
+</html>
