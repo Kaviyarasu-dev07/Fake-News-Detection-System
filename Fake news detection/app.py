@@ -1,37 +1,14 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session
 import pickle
 import re
 import os
-import secrets
 import requests
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 # HARDCODED SECRET KEY: Crucial for cloud platforms like Render so that 
-# rotating Gunicorn server workers don't accidentally log you out every 5 seconds!
+# rotating Gunicorn server workers don't accidentally lose your Analytics/History every 5 seconds!
 app.secret_key = "fnds_secure_production_key_2026" 
-
-# --- AUTHENTICATION LOGIC ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # Simple hardcoded credentials loop
-        if username == 'admin' and password == '1234':
-            session['logged_in'] = True
-            return redirect(url_for('index'))
-        else:
-            return render_template('login.html', error="Invalid credentials! Please try again.")
-            
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    return redirect(url_for('login'))
-
 
 # --- MACHINE LEARNING CORE ---
 def load_models():
@@ -148,13 +125,10 @@ def fetch_url_content(url):
 # --- ROUTES ---
 @app.route('/', methods=['GET'])
 def index():
-    # Authentication Lock
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-        
     if 'history' not in session: session['history'] = []
     if 'analytics' not in session: session['analytics'] = {'Real': 0, 'Fake': 0}
     
+    # Throw an error immediately to UI if models are physically missing
     if model is None:
         return render_template('index.html', mode='single', error="CRITICAL: model.pkl not found! Please open your terminal and run 'python train_model.py' to initialize the Neural matrices.", history=[], analytics={'Real': 0, 'Fake': 0})
         
@@ -162,10 +136,6 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Authentication Lock
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-        
     if 'history' not in session: session['history'] = []
     if 'analytics' not in session: session['analytics'] = {'Real': 0, 'Fake': 0}
         
