@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, redirect, url_for
 import pickle
 import re
 import os
@@ -10,6 +10,29 @@ app = Flask(__name__)
 # Secret key required for Flask Session handling
 app.secret_key = secrets.token_hex(16) 
 
+# --- AUTHENTICATION LOGIC ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        # Simple hardcoded credentials loop
+        if username == 'admin' and password == '1234':
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error="Invalid credentials! Please try again.")
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
+
+
+# --- MACHINE LEARNING CORE ---
 def load_models():
     """Load existing models built externally by train_model.py"""
     model_path = 'model.pkl'
@@ -41,16 +64,13 @@ def extract_real_keywords(text_vec):
     """
     if vectorizer is None: return []
     try:
-        # Check standard sklearn implementations
         if hasattr(vectorizer, 'get_feature_names_out'):
             feature_names = vectorizer.get_feature_names_out()
         else:
             feature_names = vectorizer.get_feature_names()
             
         dense_array = text_vec.todense().tolist()[0]
-        # Filter for words that genuinely carried a TF-IDF weight inside this sentence chunk
         word_scores = [(feature_names[i], score) for i, score in enumerate(dense_array) if score > 0]
-        # Sort words heavily influencing this specific array
         word_scores.sort(key=lambda x: x[1], reverse=True)
         return [w[0] for w in word_scores[:8]]
     except Exception:
@@ -77,8 +97,6 @@ def predict_single(text):
     
     conf = 0.0
     if hasattr(model, 'predict_proba'):
-        # Guard against dynamic mappings depending on training order 
-        # model.classes_ usually returns [0, 1] aligned to [Fake, Real]
         probs = model.predict_proba(vec)[0]
         
         class_list = list(model.classes_)
@@ -88,13 +106,6 @@ def predict_single(text):
         prob_fake = probs[fake_idx]
         prob_real = probs[real_idx]
         
-        # Debugging hook
-        print(f"\n--- PREDICTION EXECUTED ---")
-        print(f"Input Preview: {p_text[:60]}...")
-        print(f"Class Output: {pred_class} => {label}")
-        print(f"Probabilities Extracted -> Fake (0): {prob_fake:.4f} | Real (1): {prob_real:.4f}")
-        
-        # The user's visible confidence is the percentage of the PREDICTED label
         conf_target = prob_real if pred_class == 1 else prob_fake
         conf = round(conf_target * 100, 2)
         
@@ -114,10 +125,8 @@ def fetch_url_content(url):
         
         soup = BeautifulSoup(r.text, 'html.parser')
         
-        # Scrape all paragraph instances exclusively
         paras = soup.find_all('p')
         text = ' '.join([p.get_text() for p in paras])
-        # Clean up whitespace
         text = re.sub(r'\s+', ' ', text).strip()
         
         if len(text) < 50:
@@ -130,13 +139,17 @@ def fetch_url_content(url):
     except Exception as e:
         return f"Error: Failed to parse content. Details: {str(e)}", False
 
-# Routes
+
+# --- ROUTES ---
 @app.route('/', methods=['GET'])
 def index():
+    # Authentication Lock
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
     if 'history' not in session: session['history'] = []
     if 'analytics' not in session: session['analytics'] = {'Real': 0, 'Fake': 0}
     
-    # Throw an error immediately to UI if models are physically missing
     if model is None:
         return render_template('index.html', mode='single', error="CRITICAL: model.pkl not found! Please open your terminal and run 'python train_model.py' to initialize the Neural matrices.", history=[], analytics={'Real': 0, 'Fake': 0})
         
@@ -144,6 +157,10 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    # Authentication Lock
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
     if 'history' not in session: session['history'] = []
     if 'analytics' not in session: session['analytics'] = {'Real': 0, 'Fake': 0}
         
