@@ -40,11 +40,15 @@ def load_models():
     vectorizer_path = 'vectorizer.pkl'
     
     if os.path.exists(model_path) and os.path.exists(vectorizer_path):
-        with open(model_path, 'rb') as m_file:
-            model = pickle.load(m_file)
-        with open(vectorizer_path, 'rb') as v_file:
-            vectorizer = pickle.load(v_file)
-        return model, vectorizer
+        try:
+            with open(model_path, 'rb') as m_file:
+                loaded_model = pickle.load(m_file)
+            with open(vectorizer_path, 'rb') as v_file:
+                loaded_vectorizer = pickle.load(v_file)
+            return loaded_model, loaded_vectorizer
+        except Exception as e:
+            print(f"CRITICAL ERROR LOADING .PKL FILES: {str(e)}")
+            return None, None
     else:
         print("WARNING: Models not found! Please run 'python train_model.py' first.")
         return None, None
