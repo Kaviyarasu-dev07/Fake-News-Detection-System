@@ -1,0 +1,36 @@
+{% set c_id = range(1, 99999) | random %}
+<div class="card result-card result-{{ res.label.lower() }}" id="exportData_{{ c_id }}">
+    <div class="result-header">
+        <h2>{{ res.label | upper }} NEWS</h2>
+        <span class="confidence-badge">{{ res.conf }}% Confidence</span>
+    </div>
+    
+    <div class="progress-track">
+        <div class="progress-fill" style="width: {{ res.conf }}%"></div>
+    </div>
+
+    <div class="explanation-box">
+        <strong>🧠 AI Explanation:</strong>
+        <p>{{ res.exp }}</p>
+    </div>
+
+    <div class="keywords-overview">
+        <strong>🔍 Detected Contextual Keys:</strong>
+        <div class="kw-tags">
+            {% if res.kw %}
+                {% for k in res.kw %}
+                    <span class="tag">{{ k }}</span>
+                {% endfor %}
+            {% else %}
+                <span class="text-muted">None significant detected.</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="raw-snapshot" style="display:none;">Original Context: {{ rawtext }}</div>
+
+    <div class="result-actions mt-3">
+        <button type="button" class="btn-action" onclick="copyText('exportData_{{ c_id }}')">📋 Copy</button>
+        <button type="button" class="btn-action" onclick="downloadText('exportData_{{ c_id }}')">📥 Save</button>
+    </div>
+</div>
